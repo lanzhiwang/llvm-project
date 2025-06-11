@@ -8,9 +8,10 @@
 #===-----------------------------------------------------------------------===//
 
 set -e
+set -x
 
 function show_usage() {
-  cat << EOF
+  cat <<EOF
 Usage: build_install_llvm.sh [options] -- [cmake-args]
 
 Run cmake with the specified arguments. Used inside docker container.
@@ -28,36 +29,41 @@ All options after '--' are passed to CMake invocation.
 EOF
 }
 
-CMAKE_ARGS=""
-CMAKE_INSTALL_TARGETS=""
-CLANG_INSTALL_DIR=""
+CMAKE_ARGS=""            # CMAKE_ARGS=
+CMAKE_INSTALL_TARGETS="" # CMAKE_INSTALL_TARGETS=
+CLANG_INSTALL_DIR=""     # CLANG_INSTALL_DIR=
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -i|--install-target)
-      shift
-      CMAKE_INSTALL_TARGETS="$CMAKE_INSTALL_TARGETS $1"
-      shift
-      ;;
-    --to)
-      shift
-      CLANG_INSTALL_DIR="$1"
-      shift
-      ;;
-    --)
-      shift
-      CMAKE_ARGS="$*"
-      shift $#
-      ;;
-    -h|--help)
-      show_usage
-      exit 0
-      ;;
-    *)
-      echo "Unknown option: $1"
-      exit 1
+  -i | --install-target)
+    shift
+    CMAKE_INSTALL_TARGETS="$CMAKE_INSTALL_TARGETS $1"
+    shift
+    ;;
+  --to)
+    shift
+    CLANG_INSTALL_DIR="$1"
+    shift
+    ;;
+  --)
+    shift
+    CMAKE_ARGS="$*"
+    shift $#
+    ;;
+  -h | --help)
+    show_usage
+    exit 0
+    ;;
+  *)
+    echo "Unknown option: $1"
+    exit 1
+    ;;
   esac
 done
+# CLANG_INSTALL_DIR=/tmp/clang-install
+# CMAKE_INSTALL_TARGETS=' stage2-install-clang'
+# CMAKE_INSTALL_TARGETS=' stage2-install-clang stage2-install-clang-resource-headers'
+# CMAKE_ARGS='-DLLVM_TARGETS_TO_BUILD=Native -DCMAKE_BUILD_TYPE=Release -DBOOTSTRAP_CMAKE_BUILD_TYPE=Release -DCLANG_ENABLE_BOOTSTRAP=ON -DCLANG_BOOTSTRAP_TARGETS=install-clang;install-clang-resource-headers -DLLVM_ENABLE_PROJECTS=clang'
 
 if [ "$CMAKE_INSTALL_TARGETS" == "" ]; then
   echo "No install targets. Please pass one or more --install-target."
@@ -72,9 +78,13 @@ fi
 CLANG_BUILD_DIR=/tmp/clang-build
 
 mkdir -p "$CLANG_INSTALL_DIR"
+# mkdir -p /tmp/clang-install
 
 mkdir -p "$CLANG_BUILD_DIR/build"
+# mkdir -p /tmp/clang-build/build
+
 pushd "$CLANG_BUILD_DIR/build"
+# pushd /tmp/clang-build/build
 
 # Run the build as specified in the build arguments.
 echo "Running build"
@@ -82,7 +92,18 @@ cmake -GNinja \
   -DCMAKE_INSTALL_PREFIX="$CLANG_INSTALL_DIR" \
   $CMAKE_ARGS \
   "$CLANG_BUILD_DIR/src/llvm"
+# cmake -GNinja \
+# -DCMAKE_INSTALL_PREFIX=/tmp/clang-install \
+# -DLLVM_TARGETS_TO_BUILD=Native \
+# -DCMAKE_BUILD_TYPE=Release \
+# -DBOOTSTRAP_CMAKE_BUILD_TYPE=Release \
+# -DCLANG_ENABLE_BOOTSTRAP=ON \
+# '-DCLANG_BOOTSTRAP_TARGETS=install-clang;install-clang-resource-headers' \
+# -DLLVM_ENABLE_PROJECTS=clang \
+# /tmp/clang-build/src/llvm
+
 ninja $CMAKE_INSTALL_TARGETS
+# ninja stage2-install-clang stage2-install-clang-resource-headers
 
 popd
 

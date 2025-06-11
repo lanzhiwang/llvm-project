@@ -16,7 +16,7 @@ CHECKOUT_ARGS=""
 CMAKE_ENABLED_PROJECTS=""
 
 function show_usage() {
-  cat << EOF
+  cat <<EOF
 Usage: build_docker_image.sh [options] [-- [cmake_args]...]
 
 Available options:
@@ -77,57 +77,70 @@ SEEN_INSTALL_TARGET=0
 SEEN_CMAKE_ARGS=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -h|--help)
-      show_usage
-      exit 0
-      ;;
-    -s|--source)
-      shift
-      IMAGE_SOURCE="$1"
-      shift
-      ;;
-    -d|--docker-repository)
-      shift
-      DOCKER_REPOSITORY="$1"
-      shift
-      ;;
-    -t|--docker-tag)
-      shift
-      DOCKER_TAG="$1"
-      shift
-      ;;
-    -r|--revision|-c|--cherrypick|-b|--branch)
-      CHECKOUT_ARGS="$CHECKOUT_ARGS $1 $2"
-      shift 2
-      ;;
-    -i|--install-target)
-      SEEN_INSTALL_TARGET=1
-      BUILDSCRIPT_ARGS="$BUILDSCRIPT_ARGS $1 $2"
-      shift 2
-      ;;
-    -p|--llvm-project)
-      PROJ="$2"
-      CMAKE_ENABLED_PROJECTS="$CMAKE_ENABLED_PROJECTS;$PROJ"
-      shift 2
-      ;;
-    --checksums)
-      shift
-      CHECKSUMS_FILE="$1"
-      shift
-      ;;
-    --)
-      shift
-      BUILDSCRIPT_ARGS="$BUILDSCRIPT_ARGS -- $*"
-      SEEN_CMAKE_ARGS=1
-      shift $#
-      ;;
-    *)
-      echo "Unknown argument $1"
-      exit 1
-      ;;
+  -h | --help)
+    show_usage
+    exit 0
+    ;;
+  -s | --source)
+    shift
+    IMAGE_SOURCE="$1"
+    shift
+    ;;
+  -d | --docker-repository)
+    shift
+    DOCKER_REPOSITORY="$1"
+    shift
+    ;;
+  -t | --docker-tag)
+    shift
+    DOCKER_TAG="$1"
+    shift
+    ;;
+  -r | --revision | -c | --cherrypick | -b | --branch)
+    CHECKOUT_ARGS="$CHECKOUT_ARGS $1 $2"
+    shift 2
+    ;;
+  -i | --install-target)
+    SEEN_INSTALL_TARGET=1
+    BUILDSCRIPT_ARGS="$BUILDSCRIPT_ARGS $1 $2"
+    echo "BUILDSCRIPT_ARGS: ${BUILDSCRIPT_ARGS}"
+    shift 2
+    ;;
+  -p | --llvm-project)
+    PROJ="$2"
+    CMAKE_ENABLED_PROJECTS="$CMAKE_ENABLED_PROJECTS;$PROJ"
+    shift 2
+    ;;
+  --checksums)
+    shift
+    CHECKSUMS_FILE="$1"
+    shift
+    ;;
+  --)
+    shift
+    BUILDSCRIPT_ARGS="$BUILDSCRIPT_ARGS -- $*"
+    echo "BUILDSCRIPT_ARGS: ${BUILDSCRIPT_ARGS}"
+    SEEN_CMAKE_ARGS=1
+    shift $#
+    ;;
+  *)
+    echo "Unknown argument $1"
+    exit 1
+    ;;
   esac
 done
 
+echo "--------------------------------------------------------------------"
+echo "IMAGE_SOURCE: ${IMAGE_SOURCE}"                     # IMAGE_SOURCE: debian12
+echo "DOCKER_REPOSITORY: ${DOCKER_REPOSITORY}"           # DOCKER_REPOSITORY: mydocker/clang-debian12
+echo "DOCKER_TAG: ${DOCKER_TAG}"                         # DOCKER_TAG: latest
+echo "CHECKOUT_ARGS: ${CHECKOUT_ARGS}"                   # CHECKOUT_ARGS:
+echo "SEEN_INSTALL_TARGET: ${SEEN_INSTALL_TARGET}"       # SEEN_INSTALL_TARGET: 1
+echo "BUILDSCRIPT_ARGS: ${BUILDSCRIPT_ARGS}"             # BUILDSCRIPT_ARGS:  -i stage2-install-clang -i stage2-install-clang-resource-headers -- -DLLVM_TARGETS_TO_BUILD=Native -DCMAKE_BUILD_TYPE=Release -DBOOTSTRAP_CMAKE_BUILD_TYPE=Release -DCLANG_ENABLE_BOOTSTRAP=ON -DCLANG_BOOTSTRAP_TARGETS=install-clang;install-clang-resource-headers
+echo "CMAKE_ENABLED_PROJECTS: ${CMAKE_ENABLED_PROJECTS}" # CMAKE_ENABLED_PROJECTS: ;clang
+echo "CHECKSUMS_FILE: ${CHECKSUMS_FILE}"                 # CHECKSUMS_FILE:
+echo "SEEN_CMAKE_ARGS: ${SEEN_CMAKE_ARGS}"               # SEEN_CMAKE_ARGS: 1
+echo "--------------------------------------------------------------------"
 
 if [ "$CMAKE_ENABLED_PROJECTS" != "" ]; then
   # Remove the leading ';' character.
@@ -166,12 +179,15 @@ if [ ! -d "$SOURCE_DIR/$IMAGE_SOURCE" ]; then
   exit 1
 fi
 
-BUILD_DIR=$(mktemp -d)
+BUILD_DIR=$(mktemp -d) # BUILD_DIR=/tmp/tmp.s7c2F8IEjB
 trap "rm -rf $BUILD_DIR" EXIT
 echo "Using a temporary directory for the build: $BUILD_DIR"
+# Using a temporary directory for the build: /tmp/tmp.sBzzkbFnyE
 
 cp -r "$SOURCE_DIR/$IMAGE_SOURCE" "$BUILD_DIR/$IMAGE_SOURCE"
+# cp -r ./llvm/utils/docker/debian12 /tmp/tmp.s7c2F8IEjB/debian12
 cp -r "$SOURCE_DIR/scripts" "$BUILD_DIR/scripts"
+# cp -r ./llvm/utils/docker/scripts /tmp/tmp.s7c2F8IEjB/scripts
 
 mkdir "$BUILD_DIR/checksums"
 if [ "$CHECKSUMS_FILE" != "" ]; then
@@ -182,10 +198,28 @@ if [ "$DOCKER_TAG" != "" ]; then
   DOCKER_TAG=":$DOCKER_TAG"
 fi
 
+echo "--------------------------------------------------------------------"
+echo "IMAGE_SOURCE: ${IMAGE_SOURCE}"                     # IMAGE_SOURCE: debian12
+echo "DOCKER_REPOSITORY: ${DOCKER_REPOSITORY}"           # DOCKER_REPOSITORY: mydocker/clang-debian12
+echo "DOCKER_TAG: ${DOCKER_TAG}"                         # DOCKER_TAG: :latest
+echo "CHECKOUT_ARGS: ${CHECKOUT_ARGS}"                   # CHECKOUT_ARGS:
+echo "SEEN_INSTALL_TARGET: ${SEEN_INSTALL_TARGET}"       # SEEN_INSTALL_TARGET: 1
+echo "BUILDSCRIPT_ARGS: ${BUILDSCRIPT_ARGS}"             # BUILDSCRIPT_ARGS:  -i stage2-install-clang -i stage2-install-clang-resource-headers -- -DLLVM_TARGETS_TO_BUILD=Native -DCMAKE_BUILD_TYPE=Release -DBOOTSTRAP_CMAKE_BUILD_TYPE=Release -DCLANG_ENABLE_BOOTSTRAP=ON -DCLANG_BOOTSTRAP_TARGETS=install-clang;install-clang-resource-headers -DLLVM_ENABLE_PROJECTS=clang
+echo "CMAKE_ENABLED_PROJECTS: ${CMAKE_ENABLED_PROJECTS}" # CMAKE_ENABLED_PROJECTS: clang
+echo "CHECKSUMS_FILE: ${CHECKSUMS_FILE}"                 # CHECKSUMS_FILE:
+echo "SEEN_CMAKE_ARGS: ${SEEN_CMAKE_ARGS}"               # SEEN_CMAKE_ARGS: 1
+echo "SOURCE_DIR: ${SOURCE_DIR}"                         # SOURCE_DIR: ./llvm/utils/docker
+echo "--------------------------------------------------------------------"
+
 echo "Building ${DOCKER_REPOSITORY}${DOCKER_TAG} from $IMAGE_SOURCE"
 docker build -t "${DOCKER_REPOSITORY}${DOCKER_TAG}" \
   --build-arg "checkout_args=$CHECKOUT_ARGS" \
   --build-arg "buildscript_args=$BUILDSCRIPT_ARGS" \
   -f "$BUILD_DIR/$IMAGE_SOURCE/Dockerfile" \
   "$BUILD_DIR"
+# docker build -t mydocker/clang-debian12:latest \
+# --build-arg checkout_args= \
+# --build-arg 'buildscript_args= -i stage2-install-clang -i stage2-install-clang-resource-headers -- -DLLVM_TARGETS_TO_BUILD=Native -DCMAKE_BUILD_TYPE=Release -DBOOTSTRAP_CMAKE_BUILD_TYPE=Release -DCLANG_ENABLE_BOOTSTRAP=ON -DCLANG_BOOTSTRAP_TARGETS=install-clang;install-clang-resource-headers -DLLVM_ENABLE_PROJECTS=clang' \
+# -f /tmp/tmp.s7c2F8IEjB/debian12/Dockerfile /tmp/tmp.s7c2F8IEjB
+
 echo "Done"
